@@ -24,6 +24,38 @@ const sortConversations = (items: MessengerConversation[]) => {
   })
 }
 
+const isIsoAfterOrEqual = (left?: string | null, right?: string | null) => {
+  if (!left || !right) {
+    return false
+  }
+
+  return left >= right
+}
+
+const mergeConversationPreservingReadState = (
+  incoming: MessengerConversation,
+  current?: MessengerConversation | null,
+): MessengerConversation => {
+  if (!current?.last_read_at) {
+    return incoming
+  }
+
+  const incomingLastReadAt = incoming.last_read_at ?? null
+  const localReadIsNewer = !incomingLastReadAt || current.last_read_at > incomingLastReadAt
+  const latestMessageIsAlreadyRead = isIsoAfterOrEqual(current.last_read_at, incoming.last_message_at)
+
+  if (!localReadIsNewer || !latestMessageIsAlreadyRead) {
+    return incoming
+  }
+
+  return {
+    ...incoming,
+    last_read_at: current.last_read_at,
+    unread_count: 0,
+    has_unread: false,
+  }
+}
+
 export const useMessenger = () => {
   const {
     getFollowedUsersForMessenger,
@@ -50,6 +82,7 @@ export const useMessenger = () => {
   const messengerError = useState<string>('messenger-error', () => '')
   const hasBootstrappedMessenger = useState<boolean>('messenger-bootstrapped', () => false)
   const pendingShare = useState<MessengerShareDraft | null>('messenger-pending-share', () => null)
+  const sidebarLoadRequestId = useState<number>('messenger-sidebar-load-request-id', () => 0)
 
   const totalUnreadCount = computed(() =>
     conversations.value.reduce((sum, conversation) => sum + (conversation.unread_count ?? 0), 0)
@@ -119,6 +152,8 @@ export const useMessenger = () => {
       return
     }
 
+    const requestId = sidebarLoadRequestId.value + 1
+    sidebarLoadRequestId.value = requestId
     messengerError.value = ''
 
     if (!silent) {
@@ -132,8 +167,32 @@ export const useMessenger = () => {
         getConversations(),
       ])
 
+      if (requestId !== sidebarLoadRequestId.value) {
+        return
+      }
+
       followedUsers.value = followed
-      conversations.value = sortConversations(conversationItems)
+
+      const currentById = new Map(conversations.value.map((conversation) => [conversation.id, conversation]))
+      const mergedConversations = conversationItems.map((conversation) =>
+        mergeConversationPreservingReadState(conversation, currentById.get(conversation.id))
+      )
+
+      conversations.value = sortConversations(mergedConversations)
+
+      if (selectedConversation.value) {
+        const refreshedSelectedConversation = mergedConversations.find(
+          (conversation) => conversation.id === selectedConversation.value?.id
+        )
+
+        if (refreshedSelectedConversation) {
+          selectedConversation.value = mergeConversationPreservingReadState(
+            refreshedSelectedConversation,
+            selectedConversation.value
+          )
+        }
+      }
+
       hasBootstrappedMessenger.value = true
     } catch (error: any) {
       console.error('Messenger bootstrap error:', error)

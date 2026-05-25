@@ -127,7 +127,6 @@ class AlbumController extends Controller{
 	public function latest(Request $request){
 		$albums = $this->albumQueryForRequest($request)
 			->latest('id')
-			->limit(8)
 			->get();
 
 		return response()->json($albums);

@@ -55,6 +55,11 @@
         :disabled="isPreparing || isPlayerLoading"
         @click="playFirst"
       />
+      <FilterTracksField
+        v-model="playlistSearchQuery"
+        class="playlist-track-search"
+        :placeholder="tl('Search tracks in playlist')"
+      />
     </template>
 
     <template #actions-side>
@@ -95,10 +100,10 @@
     </template>
 
     <template #table-section>
-      <CollectionTracksTable :has-rows="(playlist?.songs || []).length > 0">
+      <CollectionTracksTable :has-rows="filteredPlaylistSongs.length > 0">
         <template #header>
           <h2>{{ tl('Tracks') }}</h2>
-          <span class="tracks-count">{{ (playlist?.songs || []).length }}</span>
+          <span class="tracks-count">{{ tracksCountLabel }}</span>
         </template>
 
         <template #head>
@@ -112,7 +117,7 @@
 
         <template #body>
           <tr
-            v-for="(track, index) in playlist?.songs || []"
+            v-for="(track, index) in filteredPlaylistSongs"
             :key="track.id"
             class="track-row"
             :class="{ active: playerTrack?.id === track.id }"
@@ -149,7 +154,7 @@
         </template>
 
         <template #empty>
-          <PageState :message="tl('No tracks yet.')" min-height="120px" />
+          <PageState :message="playlistSearchQuery.trim() ? tl('No tracks match your search.') : tl('No tracks yet.')" min-height="120px" />
         </template>
       </CollectionTracksTable>
     </template>
@@ -211,6 +216,7 @@ const saving = ref(false)
 const isPreparing = ref(false)
 const streamingError = ref('')
 const songQuery = ref('')
+const playlistSearchQuery = ref('')
 const addingId = ref<number | null>(null)
 const removingId = ref<number | null>(null)
 const selectedTrack = ref<PlaylistSong | null>(null)
@@ -234,6 +240,34 @@ const canSharePlaylist = computed(() => !!playlist.value && !playlist.value.is_p
 
 const displayTitle = computed(() => tl(playlist.value?.title || ''))
 const playlistIds = computed(() => new Set((playlist.value?.songs || []).map((s) => s.id)))
+const filteredPlaylistSongs = computed(() => {
+  const q = playlistSearchQuery.value.trim().toLowerCase()
+  const songs = playlist.value?.songs || []
+
+  if (!q) {
+    return songs
+  }
+
+  return songs.filter((track) => {
+    const searchable = [
+      track.title,
+      track.artist?.name,
+      track.album?.title,
+      track.genre?.name,
+    ]
+
+    return searchable.some((value) => (value || '').toLowerCase().includes(q))
+  })
+})
+const tracksCountLabel = computed(() => {
+  const total = playlist.value?.songs?.length || 0
+
+  if (!playlistSearchQuery.value.trim()) {
+    return total
+  }
+
+  return `${filteredPlaylistSongs.value.length} / ${total}`
+})
 
 const addableSongs = computed(() => {
   const q = songQuery.value.trim().toLowerCase()
@@ -747,6 +781,19 @@ const sharePlaylist = async () => {
   text-decoration: underline;
 }
 
+.playlist-track-search {
+  width: min(340px, 42vw);
+}
+
+.playlist-track-search :deep(.filter-tracks-field__control) {
+  width: 100%;
+}
+
+.playlist-track-search :deep(.filter-tracks-field__input) {
+  min-height: 42px;
+  border-radius: 999px;
+}
+
 .tracks-table__th-duration,
 .tracks-table__td-duration {
   width: 110px;
@@ -957,6 +1004,10 @@ const sharePlaylist = async () => {
 }
 
 @media (max-width: 760px) {
+  .playlist-track-search {
+    width: 100%;
+  }
+
   .hero-side-actions {
     width: 100%;
     justify-content: flex-start;

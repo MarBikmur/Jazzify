@@ -200,7 +200,7 @@
                   >
                     <ArtworkCover
                       class="search-dropdown__cover"
-                      :src="track.album?.id ? quickAlbumCoverById(track.album.id) : ''"
+                      :src="quickTrackCover(track)"
                       :alt="track.title"
                       fallback-icon="solar:music-notes-bold"
                       fallback-variant="playlist"
@@ -735,6 +735,17 @@ const quickAlbumCoverMap = computed(() => {
   return map
 })
 const quickAlbumCoverById = (albumId: number) => quickAlbumCoverMap.value.get(albumId) || ''
+const quickTrackCover = (track: PlaylistSong) => {
+  if (track.album?.cover_image_url || track.album?.cover_image_path) {
+    return track.album.cover_image_url || mediaUrl(track.album.cover_image_path)
+  }
+
+  if (track.album?.id) {
+    return quickAlbumCoverById(track.album.id)
+  }
+
+  return ''
+}
 const formatTrackCount = (count: number) => {
   if (!isRussian.value) {
     return `${count} ${count === 1 ? 'track' : 'tracks'}`

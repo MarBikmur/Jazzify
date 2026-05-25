@@ -34,7 +34,7 @@
             <span class="track-result__art-shell">
               <ArtworkCover
                 class="track-result__cover"
-                :src="track.album?.id ? albumCoverById(track.album.id) : ''"
+                :src="trackCover(track)"
                 :alt="track.title"
                 fallback-icon="solar:music-notes-bold"
                 fallback-variant="playlist"
@@ -222,6 +222,17 @@ const albumCoverMap = computed(() => {
 })
 
 const albumCoverById = (albumId: number) => albumCoverMap.value.get(albumId) || ''
+const trackCover = (track: PlaylistSong) => {
+  if (track.album?.cover_image_url || track.album?.cover_image_path) {
+    return track.album.cover_image_url || mediaUrl(track.album.cover_image_path)
+  }
+
+  if (track.album?.id) {
+    return albumCoverById(track.album.id)
+  }
+
+  return ''
+}
 const pluralizeRu = (count: number, one: string, few: string, many: string) => {
   if (count % 10 === 1 && count % 100 !== 11) {
     return `${count} ${one}`

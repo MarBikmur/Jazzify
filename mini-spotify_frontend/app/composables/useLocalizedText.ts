@@ -271,6 +271,8 @@ const russianLiterals: Record<string, string> = {
   'Delete': 'Удалить',
   'Share playlist': 'Поделиться плейлистом',
   'No tracks yet.': 'Треков пока нет.',
+  'Search tracks in playlist': 'Поиск треков в плейлисте',
+  'No tracks match your search.': 'По этому запросу треки не найдены.',
   'Could not load playlist': 'Не удалось загрузить плейлист',
   'Delete this playlist?': 'Удалить этот плейлист?',
   'Could not delete': 'Не удалось удалить',

@@ -145,6 +145,20 @@ class MessengerController extends Controller
         $limit = max(1, min(100, (int) $request->integer('limit', 50)));
 
         $conversation = $this->conversationForUserOrFail($conversationId, $viewer->uid);
+        $conversation->load([
+            'participants.user.artist',
+            'latestMessage.sender.artist',
+        ]);
+        $conversation->loadCount([
+            'messages as unread_count' => function (Builder $query) use ($viewer, $conversationId) {
+                $query
+                    ->where('sender_uid', '!=', $viewer->uid)
+                    ->whereRaw(
+                        "messages.created_at > COALESCE((SELECT cp.last_read_at FROM conversation_participants cp WHERE cp.conversation_id = ? AND cp.user_uid = ? LIMIT 1), TIMESTAMP '1970-01-01 00:00:00')",
+                        [$conversationId, $viewer->uid]
+                    );
+            },
+        ]);
 
         $messages = $conversation->messages()
             ->with('sender.artist')
@@ -156,7 +170,7 @@ class MessengerController extends Controller
             ->map(fn(Message $message) => $this->serializeMessage($message));
 
         return response()->json([
-            'conversation' => $this->serializeConversation($conversation->load(['participants.user.artist', 'latestMessage.sender.artist']), $viewer->uid),
+            'conversation' => $this->serializeConversation($conversation, $viewer->uid),
             'messages' => $messages,
         ]);
     }
